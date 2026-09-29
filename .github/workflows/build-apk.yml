@@ -1,0 +1,77 @@
+name: WIN ADDA APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Extract WIN ADDA V15
+        run: |
+          unzip -q WIN-ADDA-v15-final-build.zip
+          mkdir -p www
+          cp winadda_polished/index.html www/
+          cp winadda_polished/manifest.json www/
+          cp winadda_polished/sw.js www/
+          cp winadda_polished/logo.png www/
+          cp winadda_polished/logo.svg www/
+
+      - name: Create Capacitor package
+        run: |
+          cat > package.json <<'EOF'
+          {
+            "name": "winadda",
+            "version": "15.0.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/core": "8.5.2",
+              "@capacitor/android": "8.5.2"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "8.5.2"
+            }
+          }
+          EOF
+
+      - name: Install Capacitor
+        run: npm install
+
+      - name: Create Capacitor config
+        run: |
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.winadda.app",
+            "appName": "WIN ADDA",
+            "webDir": "www",
+            "server": {
+              "androidScheme": "https"
+            }
+          }
+          EOF
+
+      - name: Create Android project
+        run: npx cap add android
+
+      - name: Sync Android
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WIN-ADDA-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
